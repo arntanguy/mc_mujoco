@@ -359,7 +359,7 @@ public:
     }
     for(size_t i = 0; i < mj_ctrl.size(); ++i)
     {
-      auto jnt_idx = mj_mot_ids[i]-1; // subtract 1 because mujoco counts from the "freejoint"
+      auto jnt_idx = mj_mot_ids[i] - 1; // subtract 1 because mujoco counts from the "freejoint"
       mj_ctrl[i] =
           PD(jnt_idx, mj_prev_ctrl_q[i] + (interp_idx + 1) * (mj_next_ctrl_q[i] - mj_prev_ctrl_q[i]) / frameskip_,
              encoders[jnt_idx],
