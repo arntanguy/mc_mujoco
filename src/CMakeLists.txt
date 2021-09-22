@@ -3,6 +3,7 @@ set(mc_mujoco_SRC
   mj_sim.cpp
   mj_utils.cpp
   ${MUJOCO_INCLUDE_DIR}/uitools.h
+  ${MUJOCO_INCLUDE_DIR}/uitools.c
   MujocoClient.cpp
   MujocoClient.h
   widgets/Arrow.h
