@@ -169,7 +169,7 @@ static void merge_mujoco_asset(const pugi::xml_node & in,
       bfs::path n_path(n_file.value());
       if(!n_path.is_absolute())
       {
-        n_file.set_value(bfs::absolute(dir / n_path).c_str());
+        n_file.set_value(bfs::canonical(bfs::absolute(dir / n_path)).c_str());
       }
     }
   };
@@ -294,7 +294,7 @@ static bfs::path get_mujoco_path(const std::string & xmlFile, const pugi::xml_no
   }
   else
   {
-    return bfs::absolute(xmlPath / dir);
+    return bfs::canonical(bfs::absolute(xmlPath / dir));
   }
 }
 
