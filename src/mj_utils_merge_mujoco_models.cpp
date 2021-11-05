@@ -298,6 +298,70 @@ static bfs::path get_mujoco_path(const std::string & xmlFile, const pugi::xml_no
   }
 }
 
+std::string as_utf8(const char * str)
+{
+  return str;
+}
+std::wstring as_wide(const wchar_t * str)
+{
+  return str;
+}
+
+static void mj_xml_resolve_include(pugi::xml_node & root, const std::string & base_dir)
+{
+  for(auto & node : root.children())
+  {
+    if(as_utf8(node.name()) == "include")
+    {
+      auto file = as_utf8(node.attribute("file").value());
+      if(file.rfind("/", 0) != 0 || file.rfind("file://", 0) != 0)
+      { // if this is a relative path
+        file = base_dir + "/" + file;
+      }
+
+      auto parent_node = node.parent();
+      pugi::xml_document in;
+      if(!in.load_file(file.c_str()))
+      {
+        mc_rtc::log::error_and_throw<std::runtime_error>("Failed to load included xml {}", file);
+      }
+      auto included_root = in.child("mujocoinclude");
+      if(!included_root)
+      {
+        mc_rtc::log::error_and_throw<std::runtime_error>(
+            "Included XML file ({}) does not contain a mujocoinclude root node", file);
+      }
+      mj_xml_resolve_include(included_root, base_dir);
+      for(const auto & included_node : included_root.children())
+      {
+        auto merge_node = [](pugi::xml_node & parent, const std::string & name, const pugi::xml_node & merge_node) {
+          if(parent.child(name.c_str()))
+          { // merge with corresponding existing node
+            auto base_node = parent.child(name.c_str());
+            for(const auto n : merge_node)
+            {
+              base_node.append_copy(n);
+            }
+          }
+          else
+          {
+            parent.append_copy(merge_node);
+          }
+        };
+        merge_node(parent_node, as_utf8(included_node.name()), included_node);
+      }
+    }
+    else
+    {
+      mj_xml_resolve_include(node, base_dir);
+    }
+  }
+
+  // Remove all include nodes
+  auto ns = root.select_nodes("include");
+  for(auto & n : ns) n.node().parent().remove_child(n.node());
+}
+
 static void merge_mujoco_model(const std::string & robot, const std::string & xmlFile, pugi::xml_node & out)
 {
   pugi::xml_document in;
@@ -310,6 +374,7 @@ static void merge_mujoco_model(const std::string & robot, const std::string & xm
   {
     mc_rtc::log::error_and_throw<std::runtime_error>("No mujoco root node in {}", xmlFile);
   }
+  mj_xml_resolve_include(root, boost::filesystem::path(xmlFile).parent_path().c_str());
   /** Merge compiler flags */
   {
     auto compiler_out = get_child_or_create(out, "compiler");
@@ -456,6 +521,7 @@ static MjRobot mj_robot_from_xml(const std::string & name, const std::string & x
   {
     mc_rtc::log::error_and_throw<std::runtime_error>("No mujoco root node in {}", xmlFile);
   }
+  mj_xml_resolve_include(root, boost::filesystem::path(xmlFile).parent_path().c_str());
   auto root_body = root.child("worldbody").child("body");
   if(root_body)
   {
@@ -464,6 +530,10 @@ static MjRobot mj_robot_from_xml(const std::string & name, const std::string & x
     {
       out.root_body = fmt::format("{}_{}", prefix, out.root_body);
     }
+  }
+  else
+  {
+    mc_rtc::log::error_and_throw<std::runtime_error>("No worldbody->body node in {}", xmlFile);
   }
   get_joint_names(root.child("worldbody"), prefix, out.mj_jnt_names, out.root_joint);
   get_motor_names(root.child("actuator"), prefix, out.mj_jnt_names, out.mj_mot_names);
@@ -480,6 +550,7 @@ std::string merge_mujoco_models(const std::vector<std::string> & robots,
     mjRobots.push_back(mj_robot_from_xml(robots[0], xmlFiles[0]));
     return xmlFiles[0];
   }
+
   std::string outFile = (bfs::temp_directory_path() / bfs::unique_path("mc_mujoco_%%%%-%%%%-%%%%-%%%%.xml")).string();
   pugi::xml_document out_doc;
   auto out = out_doc.append_child("mujoco");
