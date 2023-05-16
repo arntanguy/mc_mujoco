@@ -163,13 +163,13 @@ struct MjRobot
   void reset(const mc_rbdyn::Robot & robot);
 
   /** Update sensors based on model and data */
-  void updateSensors(mc_control::MCGlobalController * gc, mjModel * model, mjData * data);
+  void updateSensors(mc_control::MCGlobalController * gc, mjModel * model, mjData * data, bool disturbance);
 
   /** Update the control */
   void updateControl(const mc_rbdyn::Robot & robot);
 
   /** Send control to MuJoCo */
-  void sendControl(const mjModel & model, mjData & data, size_t interp_idx, size_t frameskip_, bool torque_control);
+  void sendControl(const mjModel & model, mjData & data, size_t interp_idx, size_t frameskip_, bool torque_control, bool disturbance);
 
   /** Run PD control for a given joint */
   double PD(size_t jnt_id, double q_ref, double q, double qdot_ref, double qdot);
@@ -300,7 +300,7 @@ public:
 
   void startSimulation();
 
-  void updateData();
+  void updateData(bool disturbance);
 
   bool controlStep();
 
