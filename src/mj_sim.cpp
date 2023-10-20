@@ -1024,6 +1024,7 @@ void MjSimImpl::simStep()
   // model.opt.timestep will be used here
   mj_step(model, data);
   mju_zero(data->qfrc_applied, model->nv);
+  mju_zero(data->qfrc_applied, model->nv);
 
   wallclock = data->time;
 }
