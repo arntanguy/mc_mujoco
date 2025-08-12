@@ -677,6 +677,7 @@ void MjSimImpl::startSimulation()
   {
     r.initialize(model, controller->robot(r.name));
     controller->setEncoderValues(r.name, r.encoders);
+    controller->setEncoderVelocities(r.name, r.alphas);
   }
   for(const auto & r : robots)
   {
@@ -822,7 +823,7 @@ void MjRobot::sendControl(const mjModel & model,
     torque_ref += mj_prev_ctrl_jointTorque[i];
     if(mot_id != -1)
     {
-      if(torque_control && torque_ref != 0)
+      if(torque_control)
       {
         mj_ctrl[i] = torque_ref;
       }
@@ -859,6 +860,10 @@ bool MjSimImpl::controlStep()
     {
       r.updateControl(controller->robots().robot(r.name));
     }
+  }
+  if(controller->controller().datastore().has("ControlMode"))
+  {
+    config.torque_control = controller->controller().datastore().get<std::string>("ControlMode").compare("Torque") == 0;
   }
   // On each control iter
   for(auto & r : robots)
