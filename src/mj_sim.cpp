@@ -925,8 +925,8 @@ void MjRobot::sendControl(const mjModel & model,
       }
       else
       {
-        mc_rtc::log::info("[mc_mujoco] [i]; {}, q: {}, q_ref: {}, alpha: {}, alpha_ref: {}",
-                          i, encoders[rjo_id], q_ref, alphas[rjo_id], alpha_ref);
+        // mc_rtc::log::info("[mc_mujoco] [i]; {}, q: {}, q_ref: {}, alpha: {}, alpha_ref: {}",
+        //                   i, encoders[rjo_id], q_ref, alphas[rjo_id], alpha_ref);
         mj_ctrl[i] = PD(rjo_id, q_ref, encoders[rjo_id], alpha_ref, alphas[rjo_id]);
       }
       double ratio = model.actuator_gear[6 * mot_id];
