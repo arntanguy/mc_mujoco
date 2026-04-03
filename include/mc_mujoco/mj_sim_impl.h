@@ -133,6 +133,8 @@ struct MjRobot
 
   /** Transform from index in mj_mot_names to index in mbc, -1 if not in mbc */
   std::vector<int> mj_to_mbc;
+  /** True when the corresponding controlled joint is an active gripper joint */
+  std::vector<bool> mj_is_gripper_joint;
   /** Command send to mujoco */
   std::vector<double> mj_ctrl;
   /** Previous position desired by mc_rtc */
