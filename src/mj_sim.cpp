@@ -387,9 +387,9 @@ void MjRobot::reset(const mc_rbdyn::Robot & robot)
   {
     for(const auto & joint : g.get().activeJoints())
     {
-  if(rjo.size() != mj_jnt_names.size())
       gripper_active_joints.insert(joint);
     }
+  if(rjo.size() != mj_jnt_names.size())
   }
   {
     mc_rtc::log::error_and_throw<std::runtime_error>(
