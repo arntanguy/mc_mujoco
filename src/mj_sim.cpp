@@ -382,12 +382,12 @@ void MjRobot::reset(const mc_rbdyn::Robot & robot)
 {
   const auto & mbc = robot.mbc();
   const auto & rjo = robot.module().ref_joint_order();
-  if(rjo.size() != mj_jnt_names.size())
   std::unordered_set<std::string> gripper_active_joints;
   for(const auto & g : robot.grippers())
   {
     for(const auto & joint : g.get().activeJoints())
     {
+  if(rjo.size() != mj_jnt_names.size())
       gripper_active_joints.insert(joint);
     }
   }
@@ -400,6 +400,7 @@ void MjRobot::reset(const mc_rbdyn::Robot & robot)
   mj_prev_ctrl_q.resize(0);
   mj_prev_ctrl_alpha.resize(0);
   mj_prev_ctrl_jointTorque.resize(0);
+  mj_is_gripper_joint.resize(0);
   mj_jnt_to_rjo.resize(0);
   mj_to_mbc.resize(0);
   encoders = std::vector<double>(rjo.size(), 0.0);
@@ -410,7 +411,6 @@ void MjRobot::reset(const mc_rbdyn::Robot & robot)
     const auto & jn = [&]()
     {
       if(!prefix.empty())
-  mj_is_gripper_joint.resize(0);
       {
         return mj_jn.substr(prefix.size() + 1);
       }
@@ -427,6 +427,7 @@ void MjRobot::reset(const mc_rbdyn::Robot & robot)
     {
       auto jIndex = robot.jointIndexByName(jn);
       mj_to_mbc.push_back(jIndex);
+      mj_is_gripper_joint.push_back(gripper_active_joints.count(jn) != 0);
       if(robot.mb().joint(jIndex).dof() != 1)
       {
         mc_rtc::log::error_and_throw<std::runtime_error>(
@@ -436,7 +437,6 @@ void MjRobot::reset(const mc_rbdyn::Robot & robot)
       mj_prev_ctrl_alpha.push_back(robot.mbc().alpha[jIndex][0]);
       mj_prev_ctrl_jointTorque.push_back(robot.mbc().jointTorque[jIndex][0]);
       if(rjo_idx != -1)
-      mj_is_gripper_joint.push_back(gripper_active_joints.count(jn) != 0);
       {
         encoders[rjo_idx] = mj_prev_ctrl_q.back();
         alphas[rjo_idx] = mj_prev_ctrl_alpha.back();
@@ -446,6 +446,7 @@ void MjRobot::reset(const mc_rbdyn::Robot & robot)
     else
     {
       mj_to_mbc.push_back(-1);
+      mj_is_gripper_joint.push_back(false);
     }
   }
   mj_ctrl = std::vector<double>(mj_prev_ctrl_q.size(), 0.0);
@@ -456,7 +457,6 @@ void MjRobot::reset(const mc_rbdyn::Robot & robot)
   // reset the PD gains to default values
   kp = default_kp;
   kd = default_kd;
-      mj_is_gripper_joint.push_back(false);
 }
 
 template<typename T>
