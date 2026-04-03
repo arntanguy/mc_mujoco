@@ -389,8 +389,8 @@ void MjRobot::reset(const mc_rbdyn::Robot & robot)
     {
       gripper_active_joints.insert(joint);
     }
-  if(rjo.size() != mj_jnt_names.size())
   }
+  if(rjo.size() != mj_jnt_names.size())
   {
     mc_rtc::log::error_and_throw<std::runtime_error>(
         "[mc_mujoco] Missmatch in model for {}, reference joint order has {} joints but MuJoCo models has {} joints",
@@ -400,9 +400,9 @@ void MjRobot::reset(const mc_rbdyn::Robot & robot)
   mj_prev_ctrl_q.resize(0);
   mj_prev_ctrl_alpha.resize(0);
   mj_prev_ctrl_jointTorque.resize(0);
-  mj_is_gripper_joint.resize(0);
   mj_jnt_to_rjo.resize(0);
   mj_to_mbc.resize(0);
+  mj_is_gripper_joint.resize(0);
   encoders = std::vector<double>(rjo.size(), 0.0);
   alphas = std::vector<double>(rjo.size(), 0.0);
   torques = std::vector<double>(rjo.size(), 0.0);
