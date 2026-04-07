@@ -988,14 +988,6 @@ void MjSimImpl::simStep()
   mju_zero(data->xfrc_applied, 6 * model->nbody);
   mjv_applyPerturbPose(model, data, &pert, 0); // move mocap bodies only
   mjv_applyPerturbForce(model, data, &pert);
-  if(pert.select > 0 && pert.active == mjPERT_TRANSLATE)
-  {
-    const Eigen::Map<const Eigen::Matrix<double, 6, 1>> pertWrench(data->xfrc_applied + 6 * pert.select);
-    mc_rtc::log::info("[mc_mujoco] MousePerturb injected mj_body_id={} local_point=[{:.3f}, {:.3f}, {:.3f}] "
-                      "xfrc(force,torque)=[{:.3f}, {:.3f}, {:.3f}; {:.3f}, {:.3f}, {:.3f}]",
-                      pert.select, pert.localpos[0], pert.localpos[1], pert.localpos[2], pertWrench[0], pertWrench[1],
-                      pertWrench[2], pertWrench[3], pertWrench[4], pertWrench[5]);
-  }
 
   for(const auto & pending : pending_body_forces_)
   {
