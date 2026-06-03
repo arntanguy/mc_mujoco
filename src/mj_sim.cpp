@@ -459,8 +459,7 @@ void MjRobot::reset(const mc_rbdyn::Robot & robot)
     {
       mj_to_mbc.push_back(-1);
       mj_is_gripper_joint.push_back(false);
-      mc_rtc::log::warning("[mc_mujoco] No matching joint in controller for MuJoCo joint {} in {}",
-                        mj_jn, name);
+      mc_rtc::log::warning("[mc_mujoco] No matching joint in controller for MuJoCo joint {} in {}", mj_jn, name);
     }
   }
   if(mj_general_act_id != -1 && gripper_active_joints.size() == 1)
@@ -572,6 +571,7 @@ void MjSimImpl::setSimulationInitialState()
         }
         data->qpos[model->jnt_qposadr[r.mj_jnt_ids[i]]] = r.encoders[r.mj_jnt_to_rjo[i]];
         data->qvel[model->jnt_dofadr[r.mj_jnt_ids[i]]] = r.alphas[r.mj_jnt_to_rjo[i]];
+        data->qfrc_actuator[model->jnt_qposadr[r.mj_jnt_ids[i]]] = r.torques[r.mj_jnt_to_rjo[i]];
       }
     }
   }
@@ -767,6 +767,7 @@ void MjSimImpl::startSimulation()
     r.initialize(model, controller->robot(r.name));
     controller->setEncoderValues(r.name, r.encoders);
     controller->setEncoderVelocities(r.name, r.alphas);
+    controller->setJointTorques(r.name, r.torques);
   }
   for(const auto & r : robots)
   {
@@ -792,24 +793,24 @@ void MjRobot::updateSensors(mc_control::MCGlobalController * gc, mjModel * model
 
   for(size_t i = 0; i < mj_jnt_ids.size(); ++i)
   {
-      if(mj_jnt_to_rjo[i] == -1)
-      {
-          continue;
-      }
-      // For mimic joints (no motor, driven by MuJoCo equality constraints),
-      // do NOT feed back the MuJoCo-driven position. Instead keep the value
-      // consistent with what the controller commanded, so the QP state in
-      // runClosedLoop() is never corrupted by equality-constraint-driven motion
-      // that mc-rtc does not model.
-      if(mj_mot_ids[i] == -1 && mj_pos_act_ids[i] == -1 && mj_vel_act_ids[i] == -1)
-      {
-          // This joint has no actuator in MuJoCo — it is driven by an equality
-          // constraint. Leave its encoder slot at the last commanded value so
-          // the observer does not inject an inconsistent state into the QP.
-          continue;
-      }
-      encoders[mj_jnt_to_rjo[i]] = data->qpos[model->jnt_qposadr[mj_jnt_ids[i]]];
-      alphas[mj_jnt_to_rjo[i]] = data->qvel[model->jnt_dofadr[mj_jnt_ids[i]]];
+    if(mj_jnt_to_rjo[i] == -1)
+    {
+      continue;
+    }
+    // For mimic joints (no motor, driven by MuJoCo equality constraints),
+    // do NOT feed back the MuJoCo-driven position. Instead keep the value
+    // consistent with what the controller commanded, so the QP state in
+    // runClosedLoop() is never corrupted by equality-constraint-driven motion
+    // that mc-rtc does not model.
+    if(mj_mot_ids[i] == -1 && mj_pos_act_ids[i] == -1 && mj_vel_act_ids[i] == -1)
+    {
+      // This joint has no actuator in MuJoCo — it is driven by an equality
+      // constraint. Leave its encoder slot at the last commanded value so
+      // the observer does not inject an inconsistent state into the QP.
+      continue;
+    }
+    encoders[mj_jnt_to_rjo[i]] = data->qpos[model->jnt_qposadr[mj_jnt_ids[i]]];
+    alphas[mj_jnt_to_rjo[i]] = data->qvel[model->jnt_dofadr[mj_jnt_ids[i]]];
   }
 
   // for(size_t i = 0; i < mj_mot_ids.size(); ++i)
@@ -823,16 +824,16 @@ void MjRobot::updateSensors(mc_control::MCGlobalController * gc, mjModel * model
 
   for(size_t i = 0; i < mj_mot_ids.size(); ++i)
   {
-      if(mj_jnt_to_rjo[i] == -1)
-      {
-          continue;
-      }
-      // Skip joints with no motor — they have no meaningful actuator torque
-      if(mj_mot_ids[i] == -1)
-      {
-          continue;
-      }
-      torques[mj_jnt_to_rjo[i]] = data->qfrc_actuator[model->jnt_dofadr[mj_jnt_ids[i]]];
+    if(mj_jnt_to_rjo[i] == -1)
+    {
+      continue;
+    }
+    // Skip joints with no motor — they have no meaningful actuator torque
+    if(mj_mot_ids[i] == -1)
+    {
+      continue;
+    }
+    torques[mj_jnt_to_rjo[i]] = data->qfrc_actuator[model->jnt_dofadr[mj_jnt_ids[i]]];
   }
   if(!gc)
   {
