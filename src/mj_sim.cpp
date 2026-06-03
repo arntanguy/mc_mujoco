@@ -571,7 +571,6 @@ void MjSimImpl::setSimulationInitialState()
         }
         data->qpos[model->jnt_qposadr[r.mj_jnt_ids[i]]] = r.encoders[r.mj_jnt_to_rjo[i]];
         data->qvel[model->jnt_dofadr[r.mj_jnt_ids[i]]] = r.alphas[r.mj_jnt_to_rjo[i]];
-        data->qfrc_actuator[model->jnt_qposadr[r.mj_jnt_ids[i]]] = r.torques[r.mj_jnt_to_rjo[i]];
       }
     }
   }
