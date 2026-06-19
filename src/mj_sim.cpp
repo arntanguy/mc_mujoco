@@ -860,8 +860,7 @@ void MjRobot::updateSensors(mc_control::MCGlobalController * gc, mjModel * model
       gc->setSensorLinearVelocities(name, {{"FloatingBase", root_linvel}});
       gc->setSensorAngularVelocities(name, {{"FloatingBase", root_angvel}});
       gc->setSensorLinearAccelerations(name, {{"FloatingBase", root_linacc}});
-      // FIXME Not implemented in mc_rtc
-      // gc->setSensorAngularAccelerations(name, {{"FloatingBase", root_angacc}});
+      gc->setSensorAngularAccelerations(name, {{"FloatingBase", root_angacc}});
     }
   }
 
