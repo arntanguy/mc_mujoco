@@ -27,6 +27,20 @@ namespace fs = std::filesystem;
 
 #include <mc_mujoco/our_glfw_adapter.h>
 
+// In mj_utils.h
+static inline void updateVector(const std::vector<std::vector<double>> & value, Eigen::VectorXd & vec)
+{
+  Eigen::DenseIndex idx = 0;
+  for(const auto & block : value)
+  {
+    Eigen::DenseIndex size = static_cast<Eigen::DenseIndex>(block.size());
+    if(size == 0) continue;
+    Eigen::Map<const Eigen::VectorXd> qi(block.data(), size);
+    vec.segment(idx, size) = qi;
+    idx += size;
+  }
+}
+
 namespace mc_mujoco
 {
 
@@ -418,6 +432,7 @@ void MjRobot::reset(const mc_rbdyn::Robot & robot)
   encoders = std::vector<double>(rjo.size(), 0.0);
   alphas = std::vector<double>(rjo.size(), 0.0);
   torques = std::vector<double>(rjo.size(), 0.0);
+  tau_ext = Eigen::VectorXd::Zero(robot.mb().nrDof());
   for(const auto & mj_jn : mj_jnt_names)
   {
     const auto & jn = [&]()
@@ -892,6 +907,51 @@ void MjRobot::updateSensors(mc_control::MCGlobalController * gc, mjModel * model
   gc->setEncoderValues(name, encoders);
   gc->setEncoderVelocities(name, alphas);
   gc->setJointTorques(name, torques);
+  if(is_external_torques_enabled_changed != use_external_torques)
+  {
+    // Ensure mc-rtc sees zero external torques when disabled
+    tau_ext.setZero();
+    robot.setExternalTorques(tau_ext);
+    is_external_torques_enabled_changed = use_external_torques;
+  }
+  if(use_external_torques)
+  {
+    const auto & mb = robot.mb();
+    std::vector<std::vector<double>> tau_ext_mbc(mb.nrJoints());
+    for(int j = 0; j < mb.nrJoints(); ++j)
+    {
+      tau_ext_mbc[j].assign(mb.joint(j).dof(), 0.0);
+    }
+
+    // Floating base: MuJoCo free joint DoF layout is [vx, vy, vz, wx, wy, wz] (linear then angular)
+    // RBDyn Free joint DoF layout is [wx, wy, wz, vx, vy, vz] (angular then linear)
+    // Both are in world frame so only a reordering is needed, no rotation
+    if(root_qvel_idx != -1 && root_joint_type == mjJNT_FREE && mb.joint(0).dof() == 6)
+    {
+      // MuJoCo indices: linear=[0,1,2], angular=[3,4,5]
+      // RBDyn indices:  angular=[0,1,2], linear=[3,4,5]
+      tau_ext_mbc[0][0] = data->qfrc_constraint[root_qvel_idx + 3]; // wx
+      tau_ext_mbc[0][1] = data->qfrc_constraint[root_qvel_idx + 4]; // wy
+      tau_ext_mbc[0][2] = data->qfrc_constraint[root_qvel_idx + 5]; // wz
+      tau_ext_mbc[0][3] = data->qfrc_constraint[root_qvel_idx + 0]; // vx
+      tau_ext_mbc[0][4] = data->qfrc_constraint[root_qvel_idx + 1]; // vy
+      tau_ext_mbc[0][5] = data->qfrc_constraint[root_qvel_idx + 2]; // vz
+    }
+
+    // 1-DoF actuated joints
+    for(size_t i = 0; i < mj_jnt_ids.size(); ++i)
+    {
+      int jIndex = mj_to_mbc[i];
+      if(jIndex == -1) continue;
+      if(mb.joint(jIndex).dof() != 1) continue;
+      int dof_addr = model->jnt_dofadr[mj_jnt_ids[i]];
+      tau_ext_mbc[jIndex][0] = data->qfrc_constraint[dof_addr];
+    }
+
+    tau_ext.setZero();
+    updateVector(tau_ext_mbc, tau_ext);
+    robot.setExternalTorques(tau_ext);
+  }
 }
 
 void MjSimImpl::updateData()
@@ -1290,6 +1350,20 @@ bool MjSimImpl::render()
         else
         {
           markers.push_back(MjObjectMarker{o.name, {getObjectPosW(o.name), ControlAxis::ALL}});
+        }
+      }
+    }
+    if(!robots.empty())
+    {
+      ImGui::Separator();
+      ImGui::Text("External torques");
+      for(auto & r : robots)
+      {
+        ImGui::Checkbox(fmt::format("Enable for {}", r.name).c_str(), &r.use_external_torques);
+        if(r.use_external_torques)
+        {
+          ImGui::SameLine();
+          ImGui::Text("||tau_ext|| = %.4f", r.tau_ext.norm());
         }
       }
     }
