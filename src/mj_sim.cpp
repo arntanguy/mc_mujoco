@@ -796,15 +796,6 @@ void MjSimImpl::startSimulation()
 
 void MjRobot::updateSensors(mc_control::MCGlobalController * gc, mjModel * model, mjData * data)
 {
-  // for(size_t i = 0; i < mj_jnt_ids.size(); ++i)
-  // {
-  //   if(mj_jnt_to_rjo[i] == -1)
-  //   {
-  //     continue;
-  //   }
-  //   encoders[mj_jnt_to_rjo[i]] = data->qpos[model->jnt_qposadr[mj_jnt_ids[i]]];
-  //   alphas[mj_jnt_to_rjo[i]] = data->qvel[model->jnt_dofadr[mj_jnt_ids[i]]];
-  // }
 
   for(size_t i = 0; i < mj_jnt_ids.size(); ++i)
   {
@@ -826,30 +817,9 @@ void MjRobot::updateSensors(mc_control::MCGlobalController * gc, mjModel * model
     }
     encoders[mj_jnt_to_rjo[i]] = data->qpos[model->jnt_qposadr[mj_jnt_ids[i]]];
     alphas[mj_jnt_to_rjo[i]] = data->qvel[model->jnt_dofadr[mj_jnt_ids[i]]];
-  }
-
-  // for(size_t i = 0; i < mj_mot_ids.size(); ++i)
-  // {
-  //   if(mj_jnt_to_rjo[i] == -1)
-  //   {
-  //     continue;
-  //   }
-  //   torques[mj_jnt_to_rjo[i]] = data->qfrc_actuator[model->jnt_dofadr[mj_jnt_ids[i]]];
-  // }
-
-  for(size_t i = 0; i < mj_mot_ids.size(); ++i)
-  {
-    if(mj_jnt_to_rjo[i] == -1)
-    {
-      continue;
-    }
-    // Skip joints with no motor — they have no meaningful actuator torque
-    if(mj_mot_ids[i] == -1)
-    {
-      continue;
-    }
     torques[mj_jnt_to_rjo[i]] = data->qfrc_actuator[model->jnt_dofadr[mj_jnt_ids[i]]];
   }
+
   if(!gc)
   {
     return;
