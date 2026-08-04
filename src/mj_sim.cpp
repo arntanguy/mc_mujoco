@@ -825,6 +825,7 @@ void MjRobot::updateSensors(mc_control::MCGlobalController * gc, mjModel * model
     return;
   }
   auto & robot = gc->controller().robots().robot(name);
+  auto & realRobot = gc->controller().realRobots().robot(name);
 
   // Body sensor updates
   if(root_qpos_idx != -1)
@@ -883,6 +884,7 @@ void MjRobot::updateSensors(mc_control::MCGlobalController * gc, mjModel * model
     // Ensure mc-rtc sees zero external torques when disabled
     tau_ext.setZero();
     robot.setExternalTorques(tau_ext);
+    realRobot.setExternalTorques(tau_ext);
     is_external_torques_enabled_changed = use_external_torques;
   }
   if(use_external_torques)
@@ -901,12 +903,22 @@ void MjRobot::updateSensors(mc_control::MCGlobalController * gc, mjModel * model
     {
       // MuJoCo indices: linear=[0,1,2], angular=[3,4,5]
       // RBDyn indices:  angular=[0,1,2], linear=[3,4,5]
-      tau_ext_mbc[0][0] = data->qfrc_constraint[root_qvel_idx + 3]; // wx
-      tau_ext_mbc[0][1] = data->qfrc_constraint[root_qvel_idx + 4]; // wy
-      tau_ext_mbc[0][2] = data->qfrc_constraint[root_qvel_idx + 5]; // wz
-      tau_ext_mbc[0][3] = data->qfrc_constraint[root_qvel_idx + 0]; // vx
-      tau_ext_mbc[0][4] = data->qfrc_constraint[root_qvel_idx + 1]; // vy
-      tau_ext_mbc[0][5] = data->qfrc_constraint[root_qvel_idx + 2]; // vz
+      // Total external/passive force acting on the free joint (in world frame)
+      double fx = data->qfrc_constraint[root_qvel_idx + 0] + data->qfrc_passive[root_qvel_idx + 0];
+      double fy = data->qfrc_constraint[root_qvel_idx + 1] + data->qfrc_passive[root_qvel_idx + 1];
+      double fz = data->qfrc_constraint[root_qvel_idx + 2] + data->qfrc_passive[root_qvel_idx + 2];
+
+      double wx = data->qfrc_constraint[root_qvel_idx + 3] + data->qfrc_passive[root_qvel_idx + 3];
+      double wy = data->qfrc_constraint[root_qvel_idx + 4] + data->qfrc_passive[root_qvel_idx + 4];
+      double wz = data->qfrc_constraint[root_qvel_idx + 5] + data->qfrc_passive[root_qvel_idx + 5];
+
+      // Assign to RBDyn world-frame spatial force vector format [Angular, Linear]
+      tau_ext_mbc[0][0] = wx;
+      tau_ext_mbc[0][1] = wy;
+      tau_ext_mbc[0][2] = wz;
+      tau_ext_mbc[0][3] = fx;
+      tau_ext_mbc[0][4] = fy;
+      tau_ext_mbc[0][5] = fz;
     }
 
     // 1-DoF actuated joints
@@ -916,12 +928,13 @@ void MjRobot::updateSensors(mc_control::MCGlobalController * gc, mjModel * model
       if(jIndex == -1) continue;
       if(mb.joint(jIndex).dof() != 1) continue;
       int dof_addr = model->jnt_dofadr[mj_jnt_ids[i]];
-      tau_ext_mbc[jIndex][0] = data->qfrc_constraint[dof_addr];
+      tau_ext_mbc[jIndex][0] = data->qfrc_constraint[dof_addr] + data->qfrc_passive[dof_addr];
     }
 
     tau_ext.setZero();
     updateVector(tau_ext_mbc, tau_ext);
     robot.setExternalTorques(tau_ext);
+    realRobot.setExternalTorques(tau_ext);
   }
 }
 
