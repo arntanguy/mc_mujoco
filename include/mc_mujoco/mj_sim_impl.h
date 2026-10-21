@@ -87,6 +87,11 @@ struct MjRobot
   std::vector<double> alphas;
   /** Joints' torque in robot.ref_joint_order */
   std::vector<double> torques;
+  /** Whether to feed external torques (qfrc_constraint) back to mc-rtc */
+  bool use_external_torques = false;
+  bool is_external_torques_enabled_changed = false;
+  /** External torques (qfrc_constraint) in robot mbc layout */
+  Eigen::VectorXd tau_ext;
   /** Force sensors reading */
   std::map<std::string, sva::ForceVecd> wrenches;
   /** Gyro readings */
@@ -116,6 +121,12 @@ struct MjRobot
   std::vector<std::string> mj_vel_act_names;
   /** Corresppondance from velocity actuator to id inside MuJoCo */
   std::vector<int> mj_vel_act_ids;
+  /** Name of a tendon-driven general actuator used for a gripper compatibility path */
+  std::string mj_general_act_name;
+  /** Correspondance from the general actuator name to id inside MuJoCo */
+  int mj_general_act_id = -1;
+  /** Joint-control index used to generate the command for the general actuator */
+  int mj_general_act_ctrl_idx = -1;
   /** Names of the joints inside MuJoCo */
   std::vector<std::string> mj_jnt_names;
   /** Correspondance from joint name to id inside MuJoCo */
@@ -133,6 +144,8 @@ struct MjRobot
 
   /** Transform from index in mj_mot_names to index in mbc, -1 if not in mbc */
   std::vector<int> mj_to_mbc;
+  /** True when the corresponding controlled joint is an active gripper joint */
+  std::vector<bool> mj_is_gripper_joint;
   /** Command send to mujoco */
   std::vector<double> mj_ctrl;
   /** Previous position desired by mc_rtc */
@@ -244,6 +257,29 @@ public:
 
   /*! Simulation wall clock time (seconds) */
   double wallclock;
+
+  struct PendingBodyForce
+  {
+    int body_id = -1;
+    std::string robot_name;
+    std::string body_name;
+    sva::ForceVecd wrench = sva::ForceVecd::Zero();
+    Eigen::Vector3d localPoint = Eigen::Vector3d::Zero();
+  };
+  std::vector<PendingBodyForce> pending_body_forces_;
+
+  struct LastAppliedBodyForceAudit
+  {
+    bool valid = false;
+    int body_id = -1;
+    std::string body_name;
+    Eigen::Vector3d body_origin = Eigen::Vector3d::Zero();
+    Eigen::Vector3d body_com = Eigen::Vector3d::Zero();
+    Eigen::Vector3d world_point = Eigen::Vector3d::Zero();
+    sva::ForceVecd requested_wrench = sva::ForceVecd::Zero();
+    sva::ForceVecd xfrc_wrench = sva::ForceVecd::Zero();
+  };
+  std::unordered_map<std::string, LastAppliedBodyForceAudit> last_applied_body_force_audit_;
 
 private:
   /** Number of MuJoCo iteration since the start */
